@@ -1,0 +1,7 @@
+DROP TABLE IF EXISTS users;
+DROP TABLE IF EXISTS accounts;
+DROP TABLE IF EXISTS account_transactions;
+DROP TABLE IF EXISTS transfers;
+DROP TABLE IF EXISTS sessions;
+DROP TABLE IF EXISTS users;
+
