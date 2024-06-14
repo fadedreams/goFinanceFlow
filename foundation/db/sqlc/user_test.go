@@ -1,5 +1,4 @@
 // user_test.go
-
 package db
 
 import (
@@ -7,48 +6,49 @@ import (
 	"testing"
 	"time"
 
-	"github.com/jackc/pgx/v5/pgxpool"
+	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	"github.com/stretchr/testify/require"
 )
 
-func createTestQueries(t *testing.T) *Queries {
-	// Connect to the test database
-	conn, err := pgxpool.New(context.Background(), "postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable")
+func createRandomUser(t *testing.T) User {
+	hashedPassword, err := sdk.HashPassword(sdk.RandomString(6))
 	require.NoError(t, err)
 
-	return New(conn)
-}
-
-func TestGetUser(t *testing.T) {
-	q := createTestQueries(t)
-
-	// Create a test user
-	username := "testuser"
-	hashedPassword := "hashedpassword"
-	fullName := "Test User"
-	email := "test@example.com"
-	_, err := q.CreateUser(context.Background(), CreateUserParams{
-		Username:       username,
+	arg := CreateUserParams{
+		Username:       sdk.RandomOwner(),
 		HashedPassword: hashedPassword,
-		FullName:       fullName,
-		Email:          email,
-	})
-	require.NoError(t, err)
+		FullName:       sdk.RandomOwner(),
+		Email:          sdk.RandomEmail(),
+	}
 
-	// Test the GetUser function
-	user, err := q.GetUser(context.Background(), username)
+	user, err := testStore.CreateUser(context.Background(), arg)
 	require.NoError(t, err)
 	require.NotEmpty(t, user)
 
-	// Verify the returned user details
-	require.Equal(t, username, user.Username)
-	require.Equal(t, hashedPassword, user.HashedPassword)
-	require.Equal(t, fullName, user.FullName)
-	require.Equal(t, email, user.Email)
-	require.False(t, user.IsEmailVerified) // Assuming default is false
-	require.WithinDuration(t, time.Now(), user.CreatedAt, time.Second)
+	require.Equal(t, arg.Username, user.Username)
+	require.Equal(t, arg.HashedPassword, user.HashedPassword)
+	require.Equal(t, arg.FullName, user.FullName)
+	require.Equal(t, arg.Email, user.Email)
+	require.True(t, user.PasswordChangedAt.IsZero())
+	require.NotZero(t, user.CreatedAt)
 
-	// Clean up by deleting the test user
-	_, err = q.db.Exec(context.Background(), "DELETE FROM users WHERE username = $1", username)
+	return user
+}
+
+func TestCreateUser(t *testing.T) {
+	createRandomUser(t)
+}
+
+func TestGetUser(t *testing.T) {
+	user1 := createRandomUser(t)
+	user2, err := testStore.GetUser(context.Background(), user1.Username)
 	require.NoError(t, err)
+	require.NotEmpty(t, user2)
+
+	require.Equal(t, user1.Username, user2.Username)
+	require.Equal(t, user1.HashedPassword, user2.HashedPassword)
+	require.Equal(t, user1.FullName, user2.FullName)
+	require.Equal(t, user1.Email, user2.Email)
+	require.WithinDuration(t, user1.PasswordChangedAt, user2.PasswordChangedAt, time.Second)
+	require.WithinDuration(t, user1.CreatedAt, user2.CreatedAt, time.Second)
 }

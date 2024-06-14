@@ -31,4 +31,7 @@ new_migration:
 sqlc:
 	sqlc generate
 
+test:
+	go test ./...
+
 .PHONY: createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration
