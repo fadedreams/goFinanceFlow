@@ -25,7 +25,7 @@ func main() {
 
 	// Use queries to interact with the database
 	// For example, to fetch an account:
-	user, err := queries.GetUser(ctx, "user1") // assuming 1 is the account ID you want to query
+	user, err := queries.GetUser(ctx, "u1") // assuming 1 is the account ID you want to query
 	if err != nil {
 		log.Fatalf("GetAccount failed: %v\n", err)
 	}

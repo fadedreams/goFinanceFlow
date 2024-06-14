@@ -42,8 +42,8 @@ Thumbs.db
 *.exe
 
 # Generated files
-gen/
-foundation/db/sqlc/
+# gen/
+# foundation/db/sqlc/
 
 # Environment files
 .env
