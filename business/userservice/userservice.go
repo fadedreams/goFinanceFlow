@@ -2,7 +2,9 @@ package userservice
 
 import (
 	"context"
+	"fmt"
 
+	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 )
 
@@ -39,4 +41,24 @@ func (us *UserService) UpdateUser(ctx context.Context, username string, params d
 		return nil, err
 	}
 	return &user, nil
+}
+
+func (us *UserService) LoginUser(ctx context.Context, username, password string) (*db.User, string, error) {
+	user, err := us.store.GetUser(ctx, username)
+	if err != nil {
+		return nil, "", fmt.Errorf("invalid credentials")
+	}
+
+	// Verify hashed password
+	if err := sdk.VerifyPassword(user.HashedPassword, password); err != nil {
+		return nil, "", fmt.Errorf("invalid credentials")
+	}
+
+	// Generate JWT token
+	token, err := sdk.GenerateJWTToken(user.Username)
+	if err != nil {
+		return nil, "", fmt.Errorf("failed to generate JWT token")
+	}
+
+	return &user, token, nil
 }

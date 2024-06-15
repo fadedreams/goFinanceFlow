@@ -97,20 +97,9 @@ func (s *Server) loginUser(c echo.Context) error {
 	}
 
 	// Authenticate user
-	user, err := s.userService.GetUser(c.Request().Context(), params.Username)
+	user, token, err := s.userService.LoginUser(c.Request().Context(), params.Username, params.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
-	}
-
-	// Verify hashed password
-	if err := sdk.VerifyPassword(user.HashedPassword, params.Password); err != nil {
-		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
-	}
-
-	// Generate JWT token (example code, replace with your actual JWT generation logic)
-	token, err := sdk.GenerateJWTToken(user.Username)
-	if err != nil {
-		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate JWT token")
 	}
 
 	// Return login response
