@@ -3,6 +3,7 @@ module github.com/fadedreams/gofinanceflow
 go 1.22.3
 
 require (
+	github.com/dgrijalva/jwt-go v3.2.0+incompatible
 	github.com/jackc/pgx/v5 v5.6.0
 	github.com/labstack/echo/v4 v4.12.0
 	github.com/stretchr/testify v1.8.4

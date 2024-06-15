@@ -6,13 +6,16 @@ import (
 	"math/rand"
 	"strings"
 	"time"
+
+	"github.com/dgrijalva/jwt-go"
 )
 
 // Constants for all supported currencies
 const (
-	USD = "USD"
-	EUR = "EUR"
-	CAD = "CAD"
+	USD       = "USD"
+	EUR       = "EUR"
+	CAD       = "CAD"
+	jwtSecret = "secret" // Replace with your actual JWT secret key
 )
 
 // IsSupportedCurrency returns true if the currency is supported
@@ -82,4 +85,19 @@ func HashPassword(password string) (string, error) {
 // CheckPassword checks if the provided password is correct or not
 func CheckPassword(password string, hashedPassword string) error {
 	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+func VerifyPassword(hashedPassword, password string) error {
+	return bcrypt.CompareHashAndPassword([]byte(hashedPassword), []byte(password))
+}
+
+// GenerateJWTToken generates a JWT token for the given username.
+func GenerateJWTToken(username string) (string, error) {
+	claims := jwt.MapClaims{
+		"username": username,
+		"exp":      time.Now().Add(time.Hour * 72).Unix(), // Token expiration time
+		"iat":      time.Now().Unix(),
+	}
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+	return token.SignedString([]byte(jwtSecret))
 }

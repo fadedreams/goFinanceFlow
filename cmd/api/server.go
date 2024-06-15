@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/fadedreams/gofinanceflow/business/domain"
 	"github.com/fadedreams/gofinanceflow/business/userservice" // Import UserService package
 	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
@@ -34,6 +35,7 @@ func NewServer(store *db.Queries) *Server {
 }
 
 func (s *Server) setupRoutes() {
+	s.router.GET("/users/login", s.loginUser)
 	s.router.GET("/users/:username", s.getUser)
 	s.router.POST("/users", s.createUser)
 	s.router.PUT("/users/:username", s.updateUser)
@@ -86,4 +88,35 @@ func (s *Server) updateUser(c echo.Context) error {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to update user: %s", err.Error()))
 	}
 	return c.JSON(http.StatusOK, user)
+}
+
+func (s *Server) loginUser(c echo.Context) error {
+	var params domain.LoginUserParams
+	if err := c.Bind(&params); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request payload")
+	}
+
+	// Authenticate user
+	user, err := s.userService.GetUser(c.Request().Context(), params.Username)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+	}
+
+	// Verify hashed password
+	if err := sdk.VerifyPassword(user.HashedPassword, params.Password); err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
+	}
+
+	// Generate JWT token (example code, replace with your actual JWT generation logic)
+	token, err := sdk.GenerateJWTToken(user.Username)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate JWT token")
+	}
+
+	// Return login response
+	response := domain.LoginResponse{
+		Token: token,
+		User:  *user,
+	}
+	return c.JSON(http.StatusOK, response)
 }
