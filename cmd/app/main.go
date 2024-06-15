@@ -4,7 +4,7 @@ import (
 	"context"
 	"log"
 
-	db "github.com/fadedreams/gofinanceflow/foundation/db/sqlc"
+	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 )

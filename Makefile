@@ -17,19 +17,19 @@ dropdb:
 	docker exec -it postgres dropdb ffdb
 
 migrateup:
-	migrate -path foundation/db/migration -database "$(DB_URL)" -verbose up
+	migrate -path infrastructure/db/migration -database "$(DB_URL)" -verbose up
 
 migrateup1:
-	migrate -path foundation/db/migration -database "$(DB_URL)" -verbose up 1
+	migrate -path infrastructure/db/migration -database "$(DB_URL)" -verbose up 1
 
 migratedown:
-	migrate -path foundation/db/migration -database "$(DB_URL)" -verbose down
+	migrate -path infrastructure/db/migration -database "$(DB_URL)" -verbose down
 
 migratedown1:
-	migrate -path foundation/db/migration -database "$(DB_URL)" -verbose down 1
+	migrate -path infrastructure/db/migration -database "$(DB_URL)" -verbose down 1
 
 new_migration:
-	migrate create -ext sql -dir foundation/db/migration -seq $(name)
+	migrate create -ext sql -dir infrastructure/db/migration -seq $(name)
 
 sqlc:
 	sqlc generate
