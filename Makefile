@@ -10,6 +10,9 @@ pg:
 makedb:
 	docker exec -it postgres createdb --username=postgres --owner=postgres ffdb
 
+rundb:
+	docker start postgres
+
 dropdb:
 	docker exec -it postgres dropdb ffdb
 

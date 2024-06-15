@@ -52,3 +52,17 @@ func TestGetUser(t *testing.T) {
 	require.WithinDuration(t, user1.PasswordChangedAt, user2.PasswordChangedAt, time.Second)
 	require.WithinDuration(t, user1.CreatedAt, user2.CreatedAt, time.Second)
 }
+
+func randomUser(t *testing.T) (user User, password string) {
+	password = sdk.RandomString(6)
+	hashedPassword, err := sdk.HashPassword(password)
+	require.NoError(t, err)
+
+	user = User{
+		Username:       sdk.RandomOwner(),
+		HashedPassword: hashedPassword,
+		FullName:       sdk.RandomOwner(),
+		Email:          sdk.RandomEmail(),
+	}
+	return
+}
