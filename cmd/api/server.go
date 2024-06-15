@@ -1,26 +1,27 @@
-// cmd/api/server.go
-
 package api
 
 import (
 	"fmt"
 	"net/http"
 
+	"github.com/fadedreams/gofinanceflow/business/userservice" // Import the UserService package
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
 
 type Server struct {
-	store  *db.Queries
-	router *echo.Echo
+	userService *userservice.UserService // Use UserService instead of db.Queries directly
+	router      *echo.Echo
 }
 
 // NewServer creates a new HTTP server and sets up routing.
 func NewServer(store *db.Queries) *Server {
+	userService := userservice.NewUserService(store) // Create UserService instance
+
 	server := &Server{
-		store:  store,
-		router: echo.New(),
+		userService: userService,
+		router:      echo.New(),
 	}
 
 	server.router.Use(middleware.Logger())
@@ -42,9 +43,11 @@ func (s *Server) Start(address string) error {
 func (s *Server) getUser(c echo.Context) error {
 	username := c.Param("username")
 	fmt.Println(username)
-	user, err := s.store.GetUser(c.Request().Context(), username)
+
+	user, err := s.userService.GetUser(c.Request().Context(), username)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusNotFound, fmt.Sprintf("User %s not found", username))
 	}
+
 	return c.JSON(http.StatusOK, user)
 }
