@@ -10,6 +10,8 @@ import (
 	"github.com/fadedreams/gofinanceflow/business/userservice" // Import UserService package
 	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
+	// "github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
 )
@@ -20,8 +22,8 @@ type Server struct {
 }
 
 // NewServer creates a new HTTP server and sets up routing.
-func NewServer(store *db.Queries) *Server {
-	userService := userservice.NewUserService(store) // Create UserService instance
+func NewServer(store *db.Queries, dbPool *pgxpool.Pool) *Server {
+	userService := userservice.NewUserService(dbPool, store) // Create UserService instance
 
 	server := &Server{
 		userService: userService,
@@ -37,24 +39,15 @@ func NewServer(store *db.Queries) *Server {
 }
 
 func (s *Server) setupRoutes() {
-	// s.router.POST("/users/login", s.loginUser)
-	// s.router.POST("/users/refresh", s.refreshToken)
-	// s.router.GET("/users/:username", s.getUser, JWTAuthMiddleware)
-	//
-	// // s.router.GET("/users/:username", s.getUser)
-	// s.router.POST("/users", s.createUser)
-	// s.router.PUT("/users/:username", s.getUser, JWTAuthMiddleware)
-
 	s.router.POST("/users/login", s.loginUser)
 	s.router.POST("/users", s.createUser)
 	s.router.POST("/users/refresh", s.refreshToken)
+	s.router.POST("/transfers", s.handleFundsTransfer)
 
 	protected := s.router.Group("/users")
 	protected.Use(JWTAuthMiddleware)
-	// protected.Use(AdminRoleCheckMiddleware)
 	protected.GET("/:username", s.getUser)
 	protected.PUT("/:username", s.updateUser)
-
 }
 
 func (s *Server) Start(address string) error {
@@ -184,7 +177,6 @@ func JWTAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 			}
 
 			// Store user information from token claims in the context
-			// fmt.Println(claims["username"])
 			c.Set("role", claims["role"])
 			c.Set("username", claims["username"])
 			return next(c)
@@ -198,10 +190,30 @@ func JWTAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 func AdminRoleCheckMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
 	return func(c echo.Context) error {
 		role, ok := c.Get("role").(string)
-		// println(role)
 		if !ok || role != "admin" {
 			return echo.NewHTTPError(http.StatusForbidden, "access forbidden: insufficient role")
 		}
 		return next(c)
 	}
+}
+
+func (s *Server) handleFundsTransfer(c echo.Context) error {
+	var transferParams domain.HandleFundsTransferParams
+	if err := c.Bind(&transferParams); err != nil {
+		return echo.NewHTTPError(http.StatusBadRequest, "invalid request payload")
+	}
+
+	// Validate transfer parameters
+	if transferParams.FromAccountID == transferParams.ToAccountID {
+		return echo.NewHTTPError(http.StatusBadRequest, "from and to accounts must be different")
+	}
+
+	// Execute the funds transfer within a transaction
+	_, err := s.userService.HandleFundsTransfer(c.Request().Context(), transferParams)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("failed to process transfer: %v", err))
+	}
+
+	// Return success response
+	return c.NoContent(http.StatusOK)
 }

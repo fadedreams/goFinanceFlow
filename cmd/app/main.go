@@ -25,8 +25,8 @@ func main() {
 	// Create a new Queries instance
 	queries := db.New(pool)
 
-	// Initialize the Echo server
-	server := api.NewServer(queries)
+	// Initialize the Echo server with both queries and pool
+	server := api.NewServer(queries, pool)
 
 	// Start the server
 	address := ":8080"

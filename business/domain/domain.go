@@ -16,3 +16,18 @@ type LoginResponse struct {
 	RefreshToken string  `json:"refresh_token"`
 	User         db.User `json:"user"`
 }
+
+type HandleFundsTransferParams struct {
+	FromAccountID int64 `json:"from_account_id"`
+	ToAccountID   int64 `json:"to_account_id"`
+	Amount        int64 `json:"amount"`
+}
+
+// HandleFundsTransferResult is the result of the transfer transaction
+type HandleFundsTransferResult struct {
+	Transfer    db.Transfer           `json:"transfer"`
+	FromAccount db.Account            `json:"from_account"`
+	ToAccount   db.Account            `json:"to_account"`
+	FromEntry   db.AccountTransaction `json:"from_entry"`
+	ToEntry     db.AccountTransaction `json:"to_entry"`
+}
