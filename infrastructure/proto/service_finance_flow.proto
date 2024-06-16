@@ -1,0 +1,16 @@
+
+syntax = "proto3";
+
+package pb;
+
+import "user.proto";
+import "create_user.proto";
+
+
+option go_package = "github.com/fadedreams/gofinanceflow/pb";
+
+
+service FinanceFlowService {
+    rpc CreateUser (CreateUserRequest) returns (CreateUserResponse) {
+    }
+}

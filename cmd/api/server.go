@@ -10,6 +10,7 @@ import (
 	"github.com/fadedreams/gofinanceflow/business/userservice" // Import UserService package
 	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
+
 	// "github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/labstack/echo/v4"
@@ -82,7 +83,19 @@ func (s *Server) createUser(c echo.Context) error {
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to create user: %s", err.Error()))
 	}
-	return c.JSON(http.StatusCreated, user)
+
+	// Create response without hashed password
+	response := domain.CreateUserResponse{
+		Username:          user.Username,
+		Role:              user.Role,
+		FullName:          user.FullName,
+		Email:             user.Email,
+		IsEmailVerified:   user.IsEmailVerified,
+		PasswordChangedAt: user.PasswordChangedAt,
+		CreatedAt:         user.CreatedAt,
+	}
+
+	return c.JSON(http.StatusCreated, response)
 }
 
 func (s *Server) updateUser(c echo.Context) error {

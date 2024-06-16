@@ -1,6 +1,8 @@
 package domain
 
 import (
+	"time"
+
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 )
 
@@ -30,4 +32,14 @@ type HandleFundsTransferResult struct {
 	ToAccount   db.Account            `json:"to_account"`
 	FromEntry   db.AccountTransaction `json:"from_entry"`
 	ToEntry     db.AccountTransaction `json:"to_entry"`
+}
+
+type CreateUserResponse struct {
+	Username          string    `json:"username"`
+	Role              string    `json:"role"`
+	FullName          string    `json:"full_name"`
+	Email             string    `json:"email"`
+	IsEmailVerified   bool      `json:"is_email_verified"`
+	PasswordChangedAt time.Time `json:"password_changed_at"`
+	CreatedAt         time.Time `json:"created_at"`
 }

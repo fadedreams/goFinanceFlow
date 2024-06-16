@@ -37,4 +37,10 @@ sqlc:
 test:
 	go test ./...
 
-.PHONY: createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration
+
+proto:
+	protoc --proto_path=infrastructure/proto --go_out=infrastructure/pb --go_opt=paths=source_relative \
+	--go-grpc_out=infrastructure/pb --go-grpc_opt=paths=source_relative \
+	infrastructure/proto/*.proto
+
+.PHONY: createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto
