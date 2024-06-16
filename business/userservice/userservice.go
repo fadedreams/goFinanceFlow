@@ -43,22 +43,28 @@ func (us *UserService) UpdateUser(ctx context.Context, username string, params d
 	return &user, nil
 }
 
-func (us *UserService) LoginUser(ctx context.Context, username, password string) (*db.User, string, error) {
+func (us *UserService) LoginUser(ctx context.Context, username, password string) (*db.User, string, string, error) {
 	user, err := us.store.GetUser(ctx, username)
 	if err != nil {
-		return nil, "", fmt.Errorf("invalid credentials")
+		return nil, "", "", fmt.Errorf("invalid credentials")
 	}
 
 	// Verify hashed password
 	if err := sdk.VerifyPassword(user.HashedPassword, password); err != nil {
-		return nil, "", fmt.Errorf("invalid credentials")
+		return nil, "", "", fmt.Errorf("invalid credentials")
 	}
 
 	// Generate JWT token
-	token, err := sdk.GenerateJWTToken(user.Username)
+	token, err := sdk.GenerateJWTToken(user.Username, user.Role)
 	if err != nil {
-		return nil, "", fmt.Errorf("failed to generate JWT token")
+		return nil, "", "", fmt.Errorf("failed to generate JWT token")
 	}
 
-	return &user, token, nil
+	// Generate refresh token
+	refreshToken, err := sdk.GenerateRefreshToken(user.Username, user.Role)
+	if err != nil {
+		return nil, "", "", fmt.Errorf("failed to generate refresh token")
+	}
+
+	return &user, token, refreshToken, nil
 }

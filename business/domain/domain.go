@@ -12,6 +12,7 @@ type LoginUserParams struct {
 
 // LoginResponse represents the response structure for a successful login.
 type LoginResponse struct {
-	Token string  `json:"token"`
-	User  db.User `json:"user"`
+	Token        string  `json:"token"`
+	RefreshToken string  `json:"refresh_token"`
+	User         db.User `json:"user"`
 }

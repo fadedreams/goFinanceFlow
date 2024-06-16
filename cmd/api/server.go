@@ -3,6 +3,8 @@ package api
 import (
 	"fmt"
 	"net/http"
+	"strings"
+	"time"
 
 	"github.com/fadedreams/gofinanceflow/business/domain"
 	"github.com/fadedreams/gofinanceflow/business/userservice" // Import UserService package
@@ -35,10 +37,24 @@ func NewServer(store *db.Queries) *Server {
 }
 
 func (s *Server) setupRoutes() {
-	s.router.GET("/users/login", s.loginUser)
-	s.router.GET("/users/:username", s.getUser)
+	// s.router.POST("/users/login", s.loginUser)
+	// s.router.POST("/users/refresh", s.refreshToken)
+	// s.router.GET("/users/:username", s.getUser, JWTAuthMiddleware)
+	//
+	// // s.router.GET("/users/:username", s.getUser)
+	// s.router.POST("/users", s.createUser)
+	// s.router.PUT("/users/:username", s.getUser, JWTAuthMiddleware)
+
+	s.router.POST("/users/login", s.loginUser)
 	s.router.POST("/users", s.createUser)
-	s.router.PUT("/users/:username", s.updateUser)
+	s.router.POST("/users/refresh", s.refreshToken)
+
+	protected := s.router.Group("/users")
+	protected.Use(JWTAuthMiddleware)
+	// protected.Use(AdminRoleCheckMiddleware)
+	protected.GET("/:username", s.getUser)
+	protected.PUT("/:username", s.updateUser)
+
 }
 
 func (s *Server) Start(address string) error {
@@ -97,15 +113,95 @@ func (s *Server) loginUser(c echo.Context) error {
 	}
 
 	// Authenticate user
-	user, token, err := s.userService.LoginUser(c.Request().Context(), params.Username, params.Password)
+	user, token, refreshToken, err := s.userService.LoginUser(c.Request().Context(), params.Username, params.Password)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusUnauthorized, "invalid credentials")
 	}
 
+	// Set refresh token as an HTTP-only cookie
+	refreshTokenCookie := new(http.Cookie)
+	refreshTokenCookie.Name = "refresh_token"
+	refreshTokenCookie.Value = refreshToken
+	refreshTokenCookie.HttpOnly = true
+	refreshTokenCookie.Path = "/"
+	refreshTokenCookie.Expires = time.Now().Add(30 * 24 * time.Hour) // Set cookie expiration time (e.g., 30 days)
+	c.SetCookie(refreshTokenCookie)
+
 	// Return login response
 	response := domain.LoginResponse{
-		Token: token,
-		User:  *user,
+		Token:        token,
+		RefreshToken: refreshToken,
+		User:         *user,
 	}
 	return c.JSON(http.StatusOK, response)
+}
+
+func (s *Server) refreshToken(c echo.Context) error {
+	refreshTokenCookie, err := c.Cookie("refresh_token")
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "missing or invalid refresh token")
+	}
+
+	claims, err := sdk.VerifyToken(refreshTokenCookie.Value)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusUnauthorized, "invalid refresh token")
+	}
+
+	username := claims["username"].(string)
+	role := claims["role"].(string)
+	newToken, err := sdk.GenerateJWTToken(username, role)
+	if err != nil {
+		return echo.NewHTTPError(http.StatusInternalServerError, "failed to generate new JWT token")
+	}
+
+	response := map[string]string{"token": newToken}
+	return c.JSON(http.StatusOK, response)
+}
+
+func JWTAuthMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		// Check for Authorization header
+		authHeader := c.Request().Header.Get("Authorization")
+		if authHeader != "" {
+			// Extract token from Authorization header
+			token := strings.Split(authHeader, "Bearer ")[1]
+			claims, err := sdk.VerifyToken(token)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid token")
+			}
+			// Store user information from token claims in the context
+			c.Set("username", claims["username"])
+			c.Set("role", claims["role"])
+			return next(c)
+		}
+
+		// Check for refresh token in cookies
+		refreshTokenCookie, err := c.Cookie("refresh_token")
+		if err == nil {
+			claims, err := sdk.VerifyToken(refreshTokenCookie.Value)
+			if err != nil {
+				return echo.NewHTTPError(http.StatusUnauthorized, "invalid refresh token")
+			}
+
+			// Store user information from token claims in the context
+			// fmt.Println(claims["username"])
+			c.Set("role", claims["role"])
+			c.Set("username", claims["username"])
+			return next(c)
+		}
+
+		return echo.NewHTTPError(http.StatusUnauthorized, "missing or invalid token")
+	}
+
+}
+
+func AdminRoleCheckMiddleware(next echo.HandlerFunc) echo.HandlerFunc {
+	return func(c echo.Context) error {
+		role, ok := c.Get("role").(string)
+		// println(role)
+		if !ok || role != "admin" {
+			return echo.NewHTTPError(http.StatusForbidden, "access forbidden: insufficient role")
+		}
+		return next(c)
+	}
 }
