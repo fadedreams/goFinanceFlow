@@ -37,10 +37,12 @@ sqlc:
 test:
 	go test ./...
 
-
 proto:
 	protoc --proto_path=infrastructure/proto --go_out=infrastructure/pb --go_opt=paths=source_relative \
 	--go-grpc_out=infrastructure/pb --go-grpc_opt=paths=source_relative \
 	infrastructure/proto/*.proto
 
-.PHONY: createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto
+evans:
+	evans --host localhost --port 9090 -r repl
+
+.PHONY: createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto evans

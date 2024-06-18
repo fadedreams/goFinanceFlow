@@ -18,86 +18,86 @@ import (
 // Requires gRPC-Go v1.32.0 or later.
 const _ = grpc.SupportPackageIsVersion7
 
-// FinanceFlowServiceClient is the client API for FinanceFlowService service.
+// FinanceFlowClient is the client API for FinanceFlow service.
 //
 // For semantics around ctx use and closing/ending streaming RPCs, please refer to https://pkg.go.dev/google.golang.org/grpc/?tab=doc#ClientConn.NewStream.
-type FinanceFlowServiceClient interface {
+type FinanceFlowClient interface {
 	CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error)
 }
 
-type financeFlowServiceClient struct {
+type financeFlowClient struct {
 	cc grpc.ClientConnInterface
 }
 
-func NewFinanceFlowServiceClient(cc grpc.ClientConnInterface) FinanceFlowServiceClient {
-	return &financeFlowServiceClient{cc}
+func NewFinanceFlowClient(cc grpc.ClientConnInterface) FinanceFlowClient {
+	return &financeFlowClient{cc}
 }
 
-func (c *financeFlowServiceClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error) {
+func (c *financeFlowClient) CreateUser(ctx context.Context, in *CreateUserRequest, opts ...grpc.CallOption) (*CreateUserResponse, error) {
 	out := new(CreateUserResponse)
-	err := c.cc.Invoke(ctx, "/pb.FinanceFlowService/CreateUser", in, out, opts...)
+	err := c.cc.Invoke(ctx, "/pb.FinanceFlow/CreateUser", in, out, opts...)
 	if err != nil {
 		return nil, err
 	}
 	return out, nil
 }
 
-// FinanceFlowServiceServer is the server API for FinanceFlowService service.
-// All implementations must embed UnimplementedFinanceFlowServiceServer
+// FinanceFlowServer is the server API for FinanceFlow service.
+// All implementations must embed UnimplementedFinanceFlowServer
 // for forward compatibility
-type FinanceFlowServiceServer interface {
+type FinanceFlowServer interface {
 	CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error)
-	mustEmbedUnimplementedFinanceFlowServiceServer()
+	mustEmbedUnimplementedFinanceFlowServer()
 }
 
-// UnimplementedFinanceFlowServiceServer must be embedded to have forward compatible implementations.
-type UnimplementedFinanceFlowServiceServer struct {
+// UnimplementedFinanceFlowServer must be embedded to have forward compatible implementations.
+type UnimplementedFinanceFlowServer struct {
 }
 
-func (UnimplementedFinanceFlowServiceServer) CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error) {
+func (UnimplementedFinanceFlowServer) CreateUser(context.Context, *CreateUserRequest) (*CreateUserResponse, error) {
 	return nil, status.Errorf(codes.Unimplemented, "method CreateUser not implemented")
 }
-func (UnimplementedFinanceFlowServiceServer) mustEmbedUnimplementedFinanceFlowServiceServer() {}
+func (UnimplementedFinanceFlowServer) mustEmbedUnimplementedFinanceFlowServer() {}
 
-// UnsafeFinanceFlowServiceServer may be embedded to opt out of forward compatibility for this service.
-// Use of this interface is not recommended, as added methods to FinanceFlowServiceServer will
+// UnsafeFinanceFlowServer may be embedded to opt out of forward compatibility for this service.
+// Use of this interface is not recommended, as added methods to FinanceFlowServer will
 // result in compilation errors.
-type UnsafeFinanceFlowServiceServer interface {
-	mustEmbedUnimplementedFinanceFlowServiceServer()
+type UnsafeFinanceFlowServer interface {
+	mustEmbedUnimplementedFinanceFlowServer()
 }
 
-func RegisterFinanceFlowServiceServer(s grpc.ServiceRegistrar, srv FinanceFlowServiceServer) {
-	s.RegisterService(&FinanceFlowService_ServiceDesc, srv)
+func RegisterFinanceFlowServer(s grpc.ServiceRegistrar, srv FinanceFlowServer) {
+	s.RegisterService(&FinanceFlow_ServiceDesc, srv)
 }
 
-func _FinanceFlowService_CreateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
+func _FinanceFlow_CreateUser_Handler(srv interface{}, ctx context.Context, dec func(interface{}) error, interceptor grpc.UnaryServerInterceptor) (interface{}, error) {
 	in := new(CreateUserRequest)
 	if err := dec(in); err != nil {
 		return nil, err
 	}
 	if interceptor == nil {
-		return srv.(FinanceFlowServiceServer).CreateUser(ctx, in)
+		return srv.(FinanceFlowServer).CreateUser(ctx, in)
 	}
 	info := &grpc.UnaryServerInfo{
 		Server:     srv,
-		FullMethod: "/pb.FinanceFlowService/CreateUser",
+		FullMethod: "/pb.FinanceFlow/CreateUser",
 	}
 	handler := func(ctx context.Context, req interface{}) (interface{}, error) {
-		return srv.(FinanceFlowServiceServer).CreateUser(ctx, req.(*CreateUserRequest))
+		return srv.(FinanceFlowServer).CreateUser(ctx, req.(*CreateUserRequest))
 	}
 	return interceptor(ctx, in, info, handler)
 }
 
-// FinanceFlowService_ServiceDesc is the grpc.ServiceDesc for FinanceFlowService service.
+// FinanceFlow_ServiceDesc is the grpc.ServiceDesc for FinanceFlow service.
 // It's only intended for direct use with grpc.RegisterService,
 // and not to be introspected or modified (even as a copy)
-var FinanceFlowService_ServiceDesc = grpc.ServiceDesc{
-	ServiceName: "pb.FinanceFlowService",
-	HandlerType: (*FinanceFlowServiceServer)(nil),
+var FinanceFlow_ServiceDesc = grpc.ServiceDesc{
+	ServiceName: "pb.FinanceFlow",
+	HandlerType: (*FinanceFlowServer)(nil),
 	Methods: []grpc.MethodDesc{
 		{
 			MethodName: "CreateUser",
-			Handler:    _FinanceFlowService_CreateUser_Handler,
+			Handler:    _FinanceFlow_CreateUser_Handler,
 		},
 	},
 	Streams:  []grpc.StreamDesc{},

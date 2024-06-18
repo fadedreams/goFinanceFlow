@@ -10,7 +10,7 @@ import "create_user.proto";
 option go_package = "github.com/fadedreams/gofinanceflow/pb";
 
 
-service FinanceFlowService {
+service FinanceFlow {
     rpc CreateUser (CreateUserRequest) returns (CreateUserResponse) {
     }
 }
