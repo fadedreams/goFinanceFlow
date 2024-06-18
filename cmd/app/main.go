@@ -2,19 +2,22 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net"
 	"os/signal"
+	"strings"
 	"syscall"
 
-	"github.com/fadedreams/gofinanceflow/cmd/api"
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 )
 
 func main() {
@@ -35,7 +38,7 @@ func main() {
 	// Use an errgroup to manage multiple concurrent tasks
 	var g errgroup.Group
 
-	// Start gRPC server
+	// Start gRPC server with interceptor
 	g.Go(func() error {
 		return runGrpcServer(ctx, queries, pool)
 	})
@@ -53,12 +56,13 @@ func main() {
 }
 
 func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
-	// Initialize the gRPC server
-	grpcServer := grpc.NewServer()
+	// Initialize the gRPC server with interceptor
+	grpcServer := grpc.NewServer(
+		grpc.UnaryInterceptor(authInterceptor),
+	)
 	server := grpc_api.NewServer(queries, pool)
 
 	// Register your gRPC service
-	// Assuming pb.RegisterFinanceFlowServer registers your service
 	pb.RegisterFinanceFlowServer(grpcServer, server)
 
 	// Register reflection service on gRPC server.
@@ -81,22 +85,63 @@ func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool)
 	return grpcServer.Serve(listener)
 }
 
-func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
-	// Since api.Server doesn't have a Handler method, assume api.NewServer returns an http.Handler directly
-	server := api.NewServer(queries, pool)
+func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+	// Check if the method being invoked is GetUser
+	if info.FullMethod == "/pb.FinanceFlow/GetUser" {
+		// Extract metadata from context
+		md, ok := metadata.FromIncomingContext(ctx)
+		if !ok {
+			return nil, fmt.Errorf("missing metadata")
+		}
 
-	// Start the HTTP server
-	address := ":8080"
-	log.Printf("Starting HTTP server on %s\n", address)
+		// Get the authorization header
+		authHeader, ok := md["authorization"]
+		if !ok || len(authHeader) == 0 {
+			return nil, fmt.Errorf("missing authorization token")
+		}
 
-	if err := server.Start(address); err != nil {
-		log.Fatalf("Failed to start server: %v\n", err)
+		// Extract the token from the "Bearer" scheme
+		token := strings.TrimPrefix(authHeader[0], "Bearer ")
+		if token == authHeader[0] { // If the token is not prefixed with "Bearer "
+			return nil, fmt.Errorf("invalid authorization token")
+		}
+
+		// Verify the token
+		_, err := sdk.VerifyToken(token)
+		if err != nil {
+			return nil, fmt.Errorf("invalid token: %v", err)
+		}
 	}
 
-	go func() {
-		<-ctx.Done()
-		log.Println("Shutting down HTTP server...")
-	}()
-	return nil
-
+	// Call the next handler in the chain
+	return handler(ctx, req)
 }
+////for all
+// func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+// 	// Extract metadata from context
+// 	md, ok := metadata.FromIncomingContext(ctx)
+// 	if !ok {
+// 		return nil, fmt.Errorf("missing metadata")
+// 	}
+//
+// 	// Get the authorization header
+// 	authHeader, ok := md["authorization"]
+// 	if !ok || len(authHeader) == 0 {
+// 		return nil, fmt.Errorf("missing authorization token")
+// 	}
+//
+// 	// Extract the token from the "Bearer" scheme
+// 	token := strings.TrimPrefix(authHeader[0], "Bearer ")
+// 	if token == authHeader[0] { // If the token is not prefixed with "Bearer "
+// 		return nil, fmt.Errorf("invalid authorization token")
+// 	}
+//
+// 	// Verify the token
+// 	_, err := sdk.VerifyToken(token)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("invalid token: %v", err)
+// 	}
+//
+// 	// Call the next handler in the chain
+// 	return handler(ctx, req)
+// }
