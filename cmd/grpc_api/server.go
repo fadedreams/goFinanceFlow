@@ -76,3 +76,21 @@ func (s *Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.L
 
 	return response, nil
 }
+func (s *Server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+	user, err := s.userService.GetUser(ctx, req.Username)
+	if err != nil {
+		return nil, fmt.Errorf("user not found: %v", err)
+	}
+
+	response := &pb.GetUserResponse{
+		User: &pb.User{
+			Username:          user.Username,
+			FullName:          user.FullName,
+			Email:             user.Email,
+			PasswordChangedAt: timestamppb.New(user.PasswordChangedAt),
+			CreatedAt:         timestamppb.New(user.CreatedAt),
+		},
+	}
+
+	return response, nil
+}
