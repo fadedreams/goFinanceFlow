@@ -3,12 +3,14 @@ package grpc_api
 import (
 	"context"
 	"fmt"
+	"strings"
 
 	"github.com/fadedreams/gofinanceflow/business/userservice"
 	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"google.golang.org/grpc/metadata"
 	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
@@ -76,7 +78,55 @@ func (s *Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.L
 
 	return response, nil
 }
+
+// func (s *Server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+// 	user, err := s.userService.GetUser(ctx, req.Username)
+// 	if err != nil {
+// 		return nil, fmt.Errorf("user not found: %v", err)
+// 	}
+//
+// 	response := &pb.GetUserResponse{
+// 		User: &pb.User{
+// 			Username:          user.Username,
+// 			FullName:          user.FullName,
+// 			Email:             user.Email,
+// 			PasswordChangedAt: timestamppb.New(user.PasswordChangedAt),
+// 			CreatedAt:         timestamppb.New(user.CreatedAt),
+// 		},
+// 	}
+//
+// 	return response, nil
+// }
+
 func (s *Server) GetUser(ctx context.Context, req *pb.GetUserRequest) (*pb.GetUserResponse, error) {
+	// Extract metadata from context
+	md, ok := metadata.FromIncomingContext(ctx)
+	if !ok {
+		return nil, fmt.Errorf("missing metadata")
+	}
+
+	fmt.Println("md: ", md) // md:  map[authorization:[Bearer "md)
+
+	// Get the authorization header
+	authHeader, ok := md["authorization"]
+	fmt.Println("authHeader: ", authHeader)
+	if !ok || len(authHeader) == 0 {
+		return nil, fmt.Errorf("missing authorization token")
+	}
+
+	// Extract the token from the "Bearer" scheme
+	token := strings.TrimPrefix(authHeader[0], "Bearer ")
+	if token == authHeader[0] { // If the token is not prefixed with "Bearer "
+		return nil, fmt.Errorf("invalid authorization token")
+	}
+
+	// Verify the token
+	_, err := sdk.VerifyToken(token)
+	if err != nil {
+		return nil, fmt.Errorf("invalid token: %v", err)
+	}
+
+	// Proceed with fetching the user information
 	user, err := s.userService.GetUser(ctx, req.Username)
 	if err != nil {
 		return nil, fmt.Errorf("user not found: %v", err)
