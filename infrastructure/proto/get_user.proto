@@ -1,0 +1,17 @@
+
+
+syntax = "proto3";
+
+package pb;
+
+import "user.proto";
+
+option go_package = "github.com/fadedreams/gofinanceflow/pb";
+
+message GetUserRequest {
+    string username = 1;
+}
+
+message GetUserResponse {
+    User user = 1;
+}

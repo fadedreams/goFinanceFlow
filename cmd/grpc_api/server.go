@@ -55,3 +55,24 @@ func (s *Server) CreateUser(ctx context.Context, req *pb.CreateUserRequest) (*pb
 
 	return response, nil
 }
+
+func (s *Server) LoginUser(ctx context.Context, req *pb.LoginUserRequest) (*pb.LoginUserResponse, error) {
+	user, token, refreshToken, err := s.userService.LoginUser(ctx, req.Username, req.Password)
+	if err != nil {
+		return nil, fmt.Errorf("invalid credentials: %v", err)
+	}
+
+	response := &pb.LoginUserResponse{
+		Token:        token,
+		RefreshToken: refreshToken,
+		User: &pb.User{
+			Username:          user.Username,
+			FullName:          user.FullName,
+			Email:             user.Email,
+			PasswordChangedAt: timestamppb.New(user.PasswordChangedAt),
+			CreatedAt:         timestamppb.New(user.CreatedAt),
+		},
+	}
+
+	return response, nil
+}

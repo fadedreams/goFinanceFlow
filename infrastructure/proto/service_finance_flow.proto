@@ -5,6 +5,8 @@ package pb;
 
 import "user.proto";
 import "create_user.proto";
+import "login_user.proto";
+import "get_user.proto";
 
 
 option go_package = "github.com/fadedreams/gofinanceflow/pb";
@@ -12,5 +14,9 @@ option go_package = "github.com/fadedreams/gofinanceflow/pb";
 
 service FinanceFlow {
     rpc CreateUser (CreateUserRequest) returns (CreateUserResponse) {
+    }
+    rpc LoginUser (LoginUserRequest) returns (LoginUserResponse) {
+    }
+    rpc GetUser (GetUserRequest) returns (GetUserResponse) {
     }
 }

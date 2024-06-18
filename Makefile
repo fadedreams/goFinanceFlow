@@ -1,5 +1,7 @@
-
 DB_URL=postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable
+PROTO_DIR = infrastructure/proto
+PB_DIR = infrastructure/pb
+PROTO_FILES = $(PROTO_DIR)/*.proto
 
 network:
 	docker network create ff-network
@@ -37,10 +39,16 @@ sqlc:
 test:
 	go test ./...
 
-proto:
-	protoc --proto_path=infrastructure/proto --go_out=infrastructure/pb --go_opt=paths=source_relative \
-	--go-grpc_out=infrastructure/pb --go-grpc_opt=paths=source_relative \
-	infrastructure/proto/*.proto
+proto: clean_pb create_pb_dir
+	protoc --proto_path=$(PROTO_DIR) --go_out=$(PB_DIR) --go_opt=paths=source_relative \
+	--go-grpc_out=$(PB_DIR) --go-grpc_opt=paths=source_relative \
+	$(PROTO_FILES)
+
+clean_pb:
+	rm -rf $(PB_DIR)
+
+create_pb_dir:
+	mkdir -p $(PB_DIR)
 
 evans:
 	evans --host localhost --port 9090 -r repl
