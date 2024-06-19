@@ -14,19 +14,25 @@ const (
 )
 
 // TaskManager defines the methods for managing tasks.
-type TaskManager struct {
+type TaskManager interface {
+	EnqueueEmailDeliveryTask(userID int, tmplID string) error
+	Run() error
+}
+
+// taskManager is a concrete implementation of TaskManager.
+type taskManager struct {
 	client *asynq.Client
 	server *asynq.Server
 }
 
 // NewTaskManager creates a new TaskManager with the given Redis options.
-func NewTaskManager(redisOpt asynq.RedisClientOpt) *TaskManager {
+func NewTaskManager(redisOpt asynq.RedisClientOpt) TaskManager {
 	client := asynq.NewClient(redisOpt)
 	server := asynq.NewServer(redisOpt, asynq.Config{
 		Concurrency: 10,
 	})
 
-	return &TaskManager{
+	return &taskManager{
 		client: client,
 		server: server,
 	}
@@ -39,7 +45,7 @@ type EmailDeliveryPayload struct {
 }
 
 // EnqueueEmailDeliveryTask enqueues a task to deliver an email.
-func (tm *TaskManager) EnqueueEmailDeliveryTask(userID int, tmplID string) error {
+func (tm *taskManager) EnqueueEmailDeliveryTask(userID int, tmplID string) error {
 	payload, err := json.Marshal(EmailDeliveryPayload{UserID: userID, TemplateID: tmplID})
 	if err != nil {
 		return err
@@ -61,7 +67,7 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 }
 
 // Run starts the asynq server to process tasks.
-func (tm *TaskManager) Run() error {
+func (tm *taskManager) Run() error {
 	mux := asynq.NewServeMux()
 	mux.HandleFunc(TypeEmailDelivery, HandleEmailDeliveryTask)
 	return tm.server.Run(mux)

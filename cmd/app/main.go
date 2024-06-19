@@ -32,7 +32,6 @@ func main() {
 	}
 
 	// redis
-
 	redis := asynq.RedisClientOpt{
 		Addr: config.RedisAddress,
 	}
@@ -40,15 +39,15 @@ func main() {
 	taskManager := tasks.NewTaskManager(redis)
 
 	// Enqueue an email delivery task
-	err = taskManager.EnqueueEmailDeliveryTask(123, "welcome-template")
-	if err != nil {
-		log.Fatalf("could not enqueue task: %v", err)
-	}
+	// err = taskManager.EnqueueEmailDeliveryTask(123, "welcome-template")
+	// if err != nil {
+	// 	log.Fatalf("could not enqueue task: %v", err)
+	// }
 
 	// Run the task manager to process tasks
-	if err := taskManager.Run(); err != nil {
-		log.Fatalf("could not run server: %v", err)
-	}
+	// if err := taskManager.Run(); err != nil {
+	// 	log.Fatalf("could not run server: %v", err)
+	// }
 
 	// connStr := "postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable"
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
@@ -67,6 +66,11 @@ func main() {
 
 	// Use an errgroup to manage multiple concurrent tasks
 	var g errgroup.Group
+	// Start task manager to process tasks
+	g.Go(func() error {
+		return taskManager.Run()
+		// return runTaskManager(ctx)
+	})
 
 	// Start gRPC server with interceptor
 	g.Go(func() error {
@@ -75,7 +79,7 @@ func main() {
 
 	// Optionally, start an HTTP server concurrently
 	g.Go(func() error {
-		return runHTTPServer(ctx, queries, pool)
+		return runHTTPServer(ctx, queries, pool, taskManager)
 	})
 
 	// Wait for all servers to exit
@@ -84,9 +88,9 @@ func main() {
 	}
 }
 
-func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
+func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool, taskManager *tasks.TaskManager) error {
 	// Since api.Server doesn't have a Handler method, assume api.NewServer returns an http.Handler directly
-	server := api.NewServer(queries, pool)
+	server := api.NewServer(queries, pool, taskManager)
 
 	// Start the HTTP server
 	address := ":8080"
@@ -103,6 +107,43 @@ func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool)
 	return nil
 
 }
+
+//	func runTaskManager(ctx context.Context) error {
+//		// Initialize zap logger
+//		logger, err := zap.NewProduction()
+//		if err != nil {
+//			log.Fatalf("Failed to initialize zap logger: %v", err)
+//		}
+//		defer logger.Sync() // flushes buffer, if any
+//		// Initialize the gRPC server with interceptor
+//		grpcServer := grpc.NewServer(
+//			// grpc.UnaryInterceptor(authInterceptor),
+//			grpc.UnaryInterceptor(chainUnaryInterceptors(loggingInterceptor(logger), authInterceptor)),
+//		)
+//		server := grpc_api.NewServer(queries, pool)
+//
+//		// Register your gRPC service
+//		pb.RegisterFinanceFlowServer(grpcServer, server)
+//
+//		// Register reflection service on gRPC server.
+//		reflection.Register(grpcServer)
+//
+//		// Start the gRPC server
+//		address := ":9090"
+//		listener, err := net.Listen("tcp", address)
+//		if err != nil {
+//			return err
+//		}
+//
+//		log.Printf("Starting gRPC server on %s\n", address)
+//		go func() {
+//			<-ctx.Done()
+//			log.Println("Shutting down gRPC server...")
+//			grpcServer.GracefulStop()
+//		}()
+//
+//		return grpcServer.Serve(listener)
+//	}
 func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
 	// Initialize zap logger
 	logger, err := zap.NewProduction()

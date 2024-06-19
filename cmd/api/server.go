@@ -2,11 +2,13 @@ package api
 
 import (
 	"fmt"
+	"log"
 	"net/http"
 	"strings"
 	"time"
 
 	"github.com/fadedreams/gofinanceflow/business/domain"
+	"github.com/fadedreams/gofinanceflow/business/tasks"
 	"github.com/fadedreams/gofinanceflow/business/userservice" // Import UserService package
 	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
@@ -20,15 +22,17 @@ import (
 type Server struct {
 	userService *userservice.UserService
 	router      *echo.Echo
+	taskManager *tasks.TaskManager
 }
 
 // NewServer creates a new HTTP server and sets up routing.
-func NewServer(store *db.Queries, dbPool *pgxpool.Pool) *Server {
+func NewServer(store *db.Queries, dbPool *pgxpool.Pool, taskManager *tasks.TaskManager) *Server {
 	userService := userservice.NewUserService(dbPool, store) // Create UserService instance
 
 	server := &Server{
 		userService: userService,
 		router:      echo.New(),
+		taskManager: taskManager,
 	}
 
 	server.router.Use(middleware.Logger())
@@ -82,6 +86,14 @@ func (s *Server) createUser(c echo.Context) error {
 	user, err := s.userService.CreateUser(c.Request().Context(), params)
 	if err != nil {
 		return echo.NewHTTPError(http.StatusInternalServerError, fmt.Sprintf("Failed to create user: %s", err.Error()))
+	}
+
+	// Ensure the TaskManager is not nil and enqueue the task
+	if s.taskManager != nil {
+		err = s.taskManager.EnqueueEmailDeliveryTask(123, "welcome-template")
+		if err != nil {
+			log.Printf("could not enqueue task: %v", err)
+		}
 	}
 
 	// Create response without hashed password
