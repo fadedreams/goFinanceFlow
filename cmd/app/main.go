@@ -8,16 +8,18 @@ import (
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
+	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
 	"github.com/jackc/pgx/v5/pgxpool"
+	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
-	"github.com/fadedreams/gofinanceflow/foundation/sdk"
 )
 
 func main() {
@@ -56,9 +58,16 @@ func main() {
 }
 
 func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
+	// Initialize zap logger
+	logger, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("Failed to initialize zap logger: %v", err)
+	}
+	defer logger.Sync() // flushes buffer, if any
 	// Initialize the gRPC server with interceptor
 	grpcServer := grpc.NewServer(
-		grpc.UnaryInterceptor(authInterceptor),
+		// grpc.UnaryInterceptor(authInterceptor),
+		grpc.UnaryInterceptor(chainUnaryInterceptors(loggingInterceptor(logger), authInterceptor)),
 	)
 	server := grpc_api.NewServer(queries, pool)
 
@@ -116,6 +125,61 @@ func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServe
 	// Call the next handler in the chain
 	return handler(ctx, req)
 }
+
+// func loggingInterceptor(
+// 	ctx context.Context,
+// 	req interface{},
+// 	info *grpc.UnaryServerInfo,
+// 	handler grpc.UnaryHandler,
+// ) (interface{}, error) {
+// 	start := time.Now()
+// 	h, err := handler(ctx, req)
+// 	log.Printf("Method: %s, Duration: %s, Error: %v", info.FullMethod, time.Since(start), err)
+// 	return h, err
+// }
+
+func loggingInterceptor(logger *zap.Logger) grpc.UnaryServerInterceptor {
+	return func(
+		ctx context.Context,
+		req interface{},
+		info *grpc.UnaryServerInfo,
+		handler grpc.UnaryHandler,
+	) (interface{}, error) {
+		start := time.Now()
+		h, err := handler(ctx, req)
+		duration := time.Since(start)
+		if err != nil {
+			logger.Error("gRPC call failed",
+				zap.String("method", info.FullMethod),
+				zap.Duration("duration", duration),
+				zap.Error(err),
+			)
+		} else {
+			logger.Info("gRPC call succeeded",
+				zap.String("method", info.FullMethod),
+				zap.Duration("duration", duration),
+			)
+		}
+		return h, err
+	}
+}
+
+// chainUnaryInterceptors chains multiple unary interceptors into a single interceptor
+func chainUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.UnaryServerInterceptor {
+	return func(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
+		chain := func(currentInter grpc.UnaryServerInterceptor, currentHandler grpc.UnaryHandler) grpc.UnaryHandler {
+			return func(currentCtx context.Context, currentReq interface{}) (interface{}, error) {
+				return currentInter(currentCtx, currentReq, info, currentHandler)
+			}
+		}
+		h := handler
+		for i := len(interceptors) - 1; i >= 0; i-- {
+			h = chain(interceptors[i], h)
+		}
+		return h(ctx, req)
+	}
+}
+
 ////for all
 // func authInterceptor(ctx context.Context, req interface{}, info *grpc.UnaryServerInfo, handler grpc.UnaryHandler) (interface{}, error) {
 // 	// Extract metadata from context
