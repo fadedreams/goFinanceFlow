@@ -22,11 +22,11 @@ import (
 type Server struct {
 	userService *userservice.UserService
 	router      *echo.Echo
-	taskManager *tasks.TaskManager
+	taskManager tasks.TaskManager
 }
 
 // NewServer creates a new HTTP server and sets up routing.
-func NewServer(store *db.Queries, dbPool *pgxpool.Pool, taskManager *tasks.TaskManager) *Server {
+func NewServer(store *db.Queries, dbPool *pgxpool.Pool, taskManager tasks.TaskManager) *Server {
 	userService := userservice.NewUserService(dbPool, store) // Create UserService instance
 
 	server := &Server{

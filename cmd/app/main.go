@@ -88,7 +88,7 @@ func main() {
 	}
 }
 
-func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool, taskManager *tasks.TaskManager) error {
+func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool, taskManager tasks.TaskManager) error {
 	// Since api.Server doesn't have a Handler method, assume api.NewServer returns an http.Handler directly
 	server := api.NewServer(queries, pool, taskManager)
 
@@ -108,42 +108,9 @@ func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool,
 
 }
 
-//	func runTaskManager(ctx context.Context) error {
-//		// Initialize zap logger
-//		logger, err := zap.NewProduction()
-//		if err != nil {
-//			log.Fatalf("Failed to initialize zap logger: %v", err)
-//		}
-//		defer logger.Sync() // flushes buffer, if any
-//		// Initialize the gRPC server with interceptor
-//		grpcServer := grpc.NewServer(
-//			// grpc.UnaryInterceptor(authInterceptor),
-//			grpc.UnaryInterceptor(chainUnaryInterceptors(loggingInterceptor(logger), authInterceptor)),
-//		)
-//		server := grpc_api.NewServer(queries, pool)
+// func runTaskManager(ctx context.Context) error {
 //
-//		// Register your gRPC service
-//		pb.RegisterFinanceFlowServer(grpcServer, server)
-//
-//		// Register reflection service on gRPC server.
-//		reflection.Register(grpcServer)
-//
-//		// Start the gRPC server
-//		address := ":9090"
-//		listener, err := net.Listen("tcp", address)
-//		if err != nil {
-//			return err
-//		}
-//
-//		log.Printf("Starting gRPC server on %s\n", address)
-//		go func() {
-//			<-ctx.Done()
-//			log.Println("Shutting down gRPC server...")
-//			grpcServer.GracefulStop()
-//		}()
-//
-//		return grpcServer.Serve(listener)
-//	}
+// }
 func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
 	// Initialize zap logger
 	logger, err := zap.NewProduction()
