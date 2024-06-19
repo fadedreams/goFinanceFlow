@@ -10,6 +10,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fadedreams/gofinanceflow/cmd/api"
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
 	sdk "github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
@@ -52,10 +53,9 @@ func main() {
 	})
 
 	// Optionally, start an HTTP server concurrently
-	// Example: Uncomment and implement as needed
-	// g.Go(func() error {
-	// 	return runHTTPServer(ctx, queries, pool)
-	// })
+	g.Go(func() error {
+		return runHTTPServer(ctx, queries, pool)
+	})
 
 	// Wait for all servers to exit
 	if err := g.Wait(); err != nil {
@@ -63,6 +63,25 @@ func main() {
 	}
 }
 
+func runHTTPServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
+	// Since api.Server doesn't have a Handler method, assume api.NewServer returns an http.Handler directly
+	server := api.NewServer(queries, pool)
+
+	// Start the HTTP server
+	address := ":8080"
+	log.Printf("Starting HTTP server on %s\n", address)
+
+	if err := server.Start(address); err != nil {
+		log.Fatalf("Failed to start server: %v\n", err)
+	}
+
+	go func() {
+		<-ctx.Done()
+		log.Println("Shutting down HTTP server...")
+	}()
+	return nil
+
+}
 func runGrpcServer(ctx context.Context, queries *db.Queries, pool *pgxpool.Pool) error {
 	// Initialize zap logger
 	logger, err := zap.NewProduction()
