@@ -10,11 +10,13 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/fadedreams/gofinanceflow/business/tasks"
 	"github.com/fadedreams/gofinanceflow/cmd/api"
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
 	sdk "github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
+	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -27,6 +29,25 @@ func main() {
 	config, err := sdk.LoadConfig(".")
 	if err != nil {
 		log.Fatalf("cannot load config: %v\n", err)
+	}
+
+	// redis
+
+	redis := asynq.RedisClientOpt{
+		Addr: config.RedisAddress,
+	}
+
+	taskManager := tasks.NewTaskManager(redis)
+
+	// Enqueue an email delivery task
+	err = taskManager.EnqueueEmailDeliveryTask(123, "welcome-template")
+	if err != nil {
+		log.Fatalf("could not enqueue task: %v", err)
+	}
+
+	// Run the task manager to process tasks
+	if err := taskManager.Run(); err != nil {
+		log.Fatalf("could not run server: %v", err)
 	}
 
 	// connStr := "postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable"

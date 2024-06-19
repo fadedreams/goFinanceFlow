@@ -1,0 +1,74 @@
+package tasks
+
+import (
+	"context"
+	"encoding/json"
+	"fmt"
+	"log"
+
+	"github.com/hibiken/asynq"
+)
+
+const (
+	TypeEmailDelivery = "email:deliver"
+)
+
+// TaskManager defines the methods for managing tasks.
+type TaskManager interface {
+	EnqueueEmailDeliveryTask(userID int, tmplID string) error
+	Run() error
+}
+
+// taskManager is a concrete implementation of TaskManager.
+type taskManager struct {
+	client *asynq.Client
+	server *asynq.Server
+}
+
+// NewTaskManager creates a new TaskManager with the given Redis options.
+func NewTaskManager(redisOpt asynq.RedisClientOpt) TaskManager {
+	client := asynq.NewClient(redisOpt)
+	server := asynq.NewServer(redisOpt, asynq.Config{
+		Concurrency: 10,
+	})
+
+	return &taskManager{
+		client: client,
+		server: server,
+	}
+}
+
+// EmailDeliveryPayload defines the payload for email delivery tasks.
+type EmailDeliveryPayload struct {
+	UserID     int
+	TemplateID string
+}
+
+// EnqueueEmailDeliveryTask enqueues a task to deliver an email.
+func (tm *taskManager) EnqueueEmailDeliveryTask(userID int, tmplID string) error {
+	payload, err := json.Marshal(EmailDeliveryPayload{UserID: userID, TemplateID: tmplID})
+	if err != nil {
+		return err
+	}
+	task := asynq.NewTask(TypeEmailDelivery, payload)
+	_, err = tm.client.Enqueue(task)
+	return err
+}
+
+// HandleEmailDeliveryTask handles the email delivery task.
+func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
+	var p EmailDeliveryPayload
+	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+		return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
+	}
+	log.Printf("Sending Email to User: user_id=%d, template_id=%s", p.UserID, p.TemplateID)
+	// Email delivery code ...
+	return nil
+}
+
+// Run starts the asynq server to process tasks.
+func (tm *taskManager) Run() error {
+	mux := asynq.NewServeMux()
+	mux.HandleFunc(TypeEmailDelivery, HandleEmailDeliveryTask)
+	return tm.server.Run(mux)
+}
