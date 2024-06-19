@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
-	"github.com/fadedreams/gofinanceflow/foundation/sdk"
+	sdk "github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -23,12 +23,18 @@ import (
 )
 
 func main() {
-	connStr := "postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable"
+	config, err := sdk.LoadConfig(".")
+	if err != nil {
+		log.Fatalf("cannot load config: %v\n", err)
+	}
+
+	// connStr := "postgresql://postgres:postgres@localhost:5432/ffdb?sslmode=disable"
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer stop()
 
 	// Create a connection pool
-	pool, err := pgxpool.New(ctx, connStr)
+	// pool, err := pgxpool.New(ctx, connStr)
+	pool, err := pgxpool.New(ctx, config.DBSource)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
