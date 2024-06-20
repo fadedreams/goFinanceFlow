@@ -6,7 +6,7 @@ PROTO_FILES = $(PROTO_DIR)/*.proto
 network:
 	docker network create ff-network
 
-makepg:
+setupdb:
 	docker run --name postgres --network ff-network -p 5432:5432 -e POSTGRES_USER=postgres -e POSTGRES_PASSWORD=postgres -d postgres:14-alpine
 
 makedb:
@@ -58,4 +58,4 @@ runredis:
 
 
 
-.PHONY: makepg createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto evans runredis
+.PHONY: setupdb createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto evans runredis

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"sync"
 
 	"github.com/hibiken/asynq"
 )
@@ -12,6 +13,44 @@ import (
 const (
 	TypeEmailDelivery = "email:deliver"
 )
+
+// EventEmitter defines the methods for an event emitter.
+type EventEmitter interface {
+	On(event string, listener func(ctx context.Context, payload []byte) error)
+	Emit(event string, ctx context.Context, payload []byte) error
+}
+
+// SimpleEventEmitter is a simple implementation of EventEmitter.
+type SimpleEventEmitter struct {
+	listeners map[string][]func(ctx context.Context, payload []byte) error
+	mu        sync.RWMutex
+}
+
+// NewSimpleEventEmitter creates a new SimpleEventEmitter.
+func NewSimpleEventEmitter() *SimpleEventEmitter {
+	return &SimpleEventEmitter{
+		listeners: make(map[string][]func(ctx context.Context, payload []byte) error),
+	}
+}
+
+// On registers a listener for a specific event.
+func (e *SimpleEventEmitter) On(event string, listener func(ctx context.Context, payload []byte) error) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.listeners[event] = append(e.listeners[event], listener)
+}
+
+// Emit emits an event to all registered listeners.
+func (e *SimpleEventEmitter) Emit(event string, ctx context.Context, payload []byte) error {
+	e.mu.RLock()
+	defer e.mu.RUnlock()
+	for _, listener := range e.listeners[event] {
+		if err := listener(ctx, payload); err != nil {
+			return err
+		}
+	}
+	return nil
+}
 
 // TaskManager defines the methods for managing tasks.
 type TaskManager interface {
@@ -21,8 +60,9 @@ type TaskManager interface {
 
 // taskManager is a concrete implementation of TaskManager.
 type taskManager struct {
-	client *asynq.Client
-	server *asynq.Server
+	client       *asynq.Client
+	server       *asynq.Server
+	eventEmitter EventEmitter
 }
 
 // NewTaskManager creates a new TaskManager with the given Redis options.
@@ -32,10 +72,17 @@ func NewTaskManager(redisOpt asynq.RedisClientOpt) TaskManager {
 		Concurrency: 10,
 	})
 
-	return &taskManager{
-		client: client,
-		server: server,
+	eventEmitter := NewSimpleEventEmitter()
+	tm := &taskManager{
+		client:       client,
+		server:       server,
+		eventEmitter: eventEmitter,
 	}
+
+	// Register default task handlers
+	tm.eventEmitter.On(TypeEmailDelivery, HandleEmailDeliveryTask)
+
+	return tm
 }
 
 // EmailDeliveryPayload defines the payload for email delivery tasks.
@@ -56,9 +103,9 @@ func (tm *taskManager) EnqueueEmailDeliveryTask(userID int, tmplID string) error
 }
 
 // HandleEmailDeliveryTask handles the email delivery task.
-func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
+func HandleEmailDeliveryTask(ctx context.Context, payload []byte) error {
 	var p EmailDeliveryPayload
-	if err := json.Unmarshal(t.Payload(), &p); err != nil {
+	if err := json.Unmarshal(payload, &p); err != nil {
 		return fmt.Errorf("json.Unmarshal failed: %v: %w", err, asynq.SkipRetry)
 	}
 	log.Printf("Sending Email to User: user_id=%d, template_id=%s", p.UserID, p.TemplateID)
@@ -69,6 +116,8 @@ func HandleEmailDeliveryTask(ctx context.Context, t *asynq.Task) error {
 // Run starts the asynq server to process tasks.
 func (tm *taskManager) Run() error {
 	mux := asynq.NewServeMux()
-	mux.HandleFunc(TypeEmailDelivery, HandleEmailDeliveryTask)
+	mux.HandleFunc(TypeEmailDelivery, func(ctx context.Context, t *asynq.Task) error {
+		return tm.eventEmitter.Emit(TypeEmailDelivery, ctx, t.Payload())
+	})
 	return tm.server.Run(mux)
 }
