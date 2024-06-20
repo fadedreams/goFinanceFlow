@@ -25,33 +25,6 @@ import (
 	"google.golang.org/grpc/reflection"
 )
 
-type serverOptions struct {
-	logger      *zap.Logger
-	queries     *db.Queries
-	pool        *pgxpool.Pool
-	taskManager tasks.TaskManager
-}
-
-type serverOption func(*serverOptions)
-
-func withLogger(logger *zap.Logger) serverOption {
-	return func(o *serverOptions) {
-		o.logger = logger
-	}
-}
-
-func withQueries(queries *db.Queries, pool *pgxpool.Pool) serverOption {
-	return func(o *serverOptions) {
-		o.queries = queries
-		o.pool = pool
-	}
-}
-
-func withTaskManager(taskManager tasks.TaskManager) serverOption {
-	return func(o *serverOptions) {
-		o.taskManager = taskManager
-	}
-}
 func main() {
 	// Initialize zap logger
 	logger, err := zap.NewProduction()
@@ -97,37 +70,23 @@ func main() {
 
 	// Create a new Queries instance
 	queries := db.New(pool)
-	// Define options for servers
-	// options := serverOptions{
-	// 	logger:      logger,
-	// 	queries:     queries,
-	// 	pool:        pool,
-	// 	taskManager: taskManager,
-	// }
-	options := serverOptions{}
-	for _, opt := range []serverOption{
-		withLogger(logger),
-		withQueries(queries, pool),
-		withTaskManager(taskManager),
-	} {
-		opt(&options)
-	}
 
 	// Use an errgroup to manage multiple concurrent tasks
 	var g errgroup.Group
 	// Start task manager to process tasks
 	g.Go(func() error {
-		return runTaskManager(ctx, options.logger, options.taskManager)
+		// return taskManager.Run()
+		return runTaskManager(ctx, logger, taskManager)
 	})
 
 	// Start gRPC server with interceptor
 	g.Go(func() error {
-		return runGrpcServer(ctx, options.queries, options.pool, options.logger)
+		return runGrpcServer(ctx, queries, pool, logger)
 	})
 
 	// Optionally, start an HTTP server concurrently
 	g.Go(func() error {
-		return runHTTPServer(ctx, options.queries, options.pool, options.taskManager, options.logger)
+		return runHTTPServer(ctx, queries, pool, taskManager, logger)
 	})
 
 	// Wait for all servers to exit
