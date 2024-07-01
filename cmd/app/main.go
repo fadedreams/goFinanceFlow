@@ -95,7 +95,7 @@ func main() {
 	// }
 	// defer pool.Close()
 
-	pool, err := connectToDatabase(ctx, &config)
+	pool, err := connectToDatabase(ctx, &config, logger)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
@@ -298,21 +298,21 @@ func chainUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Un
 	}
 }
 
-func connectToDatabase(ctx context.Context, config *sdk.Config) (*pgxpool.Pool, error) {
+func connectToDatabase(ctx context.Context, config *sdk.Config, logger *zap.Logger) (*pgxpool.Pool, error) {
 	// Create a new circuit breaker with maxFailures=3, timeout=5 seconds, pauseTime=1 second, and maxConsecutiveSuccesses=2
 	cb := gosafecircuit.NewCircuitBreaker(3, 5*time.Second, 1*time.Second, 2)
 
 	// Set up the callbacks
 	cb.SetOnOpen(func() {
-		fmt.Println("Circuit breaker opened!")
+		logger.Warn("Circuit breaker opened!")
 	})
 
 	cb.SetOnClose(func() {
-		fmt.Println("Circuit breaker closed!")
+		logger.Info("Circuit breaker closed!")
 	})
 
 	cb.SetOnHalfOpen(func() {
-		fmt.Println("Circuit breaker is half-open, trying again...")
+		logger.Info("Circuit breaker is half-open, trying again...")
 	})
 
 	// Execute the connection logic using the circuit breaker
