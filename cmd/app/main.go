@@ -3,19 +3,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"log"
-	"net"
-	"os/signal"
-	"strings"
-	"syscall"
-	"time"
-
 	"github.com/fadedreams/gofinanceflow/business/tasks"
 	"github.com/fadedreams/gofinanceflow/cmd/api"
 	"github.com/fadedreams/gofinanceflow/cmd/grpc_api"
 	sdk "github.com/fadedreams/gofinanceflow/foundation/sdk"
 	db "github.com/fadedreams/gofinanceflow/infrastructure/db/sqlc"
 	"github.com/fadedreams/gofinanceflow/infrastructure/pb"
+	"github.com/fadedreams/gosafecircuit"
 	"github.com/hibiken/asynq"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"go.uber.org/zap"
@@ -23,6 +17,12 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/metadata"
 	"google.golang.org/grpc/reflection"
+	"log"
+	"net"
+	"os/signal"
+	"strings"
+	"syscall"
+	"time"
 )
 
 type serverOptions struct {
@@ -89,7 +89,13 @@ func main() {
 
 	// Create a connection pool
 	// pool, err := pgxpool.New(ctx, connStr)
-	pool, err := pgxpool.New(ctx, config.DBSource)
+	// pool, err := pgxpool.New(ctx, config.DBSource)
+	// if err != nil {
+	// 	log.Fatalf("Unable to connect to database: %v\n", err)
+	// }
+	// defer pool.Close()
+
+	pool, err := connectToDatabase(ctx, &config)
 	if err != nil {
 		log.Fatalf("Unable to connect to database: %v\n", err)
 	}
@@ -290,6 +296,41 @@ func chainUnaryInterceptors(interceptors ...grpc.UnaryServerInterceptor) grpc.Un
 		}
 		return h(ctx, req)
 	}
+}
+
+func connectToDatabase(ctx context.Context, config *sdk.Config) (*pgxpool.Pool, error) {
+	// Create a new circuit breaker with maxFailures=3, timeout=5 seconds, pauseTime=1 second, and maxConsecutiveSuccesses=2
+	cb := gosafecircuit.NewCircuitBreaker(3, 5*time.Second, 1*time.Second, 2)
+
+	// Set up the callbacks
+	cb.SetOnOpen(func() {
+		fmt.Println("Circuit breaker opened!")
+	})
+
+	cb.SetOnClose(func() {
+		fmt.Println("Circuit breaker closed!")
+	})
+
+	cb.SetOnHalfOpen(func() {
+		fmt.Println("Circuit breaker is half-open, trying again...")
+	})
+
+	// Execute the connection logic using the circuit breaker
+	var pool *pgxpool.Pool
+	var err error
+	err = cb.Execute(func() error {
+		pool, err = pgxpool.New(ctx, config.DBSource)
+		if err != nil {
+			return err
+		}
+		return nil
+	})
+
+	if err != nil {
+		return nil, err
+	}
+
+	return pool, nil
 }
 
 ////for all
