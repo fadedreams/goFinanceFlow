@@ -1,3 +1,6 @@
+### make image
+- docker build -t myapp .
+
 ### establish db
 - make network
 - make pg

@@ -50,12 +50,15 @@ clean_pb:
 create_pb_dir:
 	mkdir -p $(PB_DIR)
 
-evans:
-	evans --host localhost --port 9090 -r repl
+# evans:
+# 	evans --host localhost --port 9090 -r repl
 
 runredis:
 	docker run --name redis -p 6379:6379 -d redis:7-alpine
 
+# Docker build target
+docker-build:
+	docker build -t myapp .
 
 
-.PHONY: setupdb createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto evans runredis
+.PHONY: setupdb createdb dropdb migrateup migratedown migrateup1 migratedown1 new_migration sqlc test proto evans runredis docker-build

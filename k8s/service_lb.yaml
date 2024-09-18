@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: myapp-service
+spec:
+  selector:
+    app: myapp
+  ports:
+    - name: http
+      protocol: TCP
+      port: 80  # Port exposed by the service
+      targetPort: 8080  # HTTP port your Go application listens on
+    - name: grpc
+      protocol: TCP
+      port: 9090  # gRPC port exposed by the service
+      targetPort: 9090  # gRPC port your Go application listens on
+  type: LoadBalancer  # Expose service externally via a cloud provider's load balancer
+  # externalIPs:
+  # - 192.168.0.10
